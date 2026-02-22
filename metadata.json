@@ -1,0 +1,5 @@
+{
+  "name": "OpenClaw Agent",
+  "description": "Autonomous agent deployed as a Telegram bot to monitor dev activity and post to social media.",
+  "requestFramePermissions": []
+}
