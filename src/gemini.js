@@ -4,13 +4,21 @@ import { getVercelDeployments } from './monitor/vercel.js';
 import { getRenderDeploys } from './monitor/render.js';
 import { webSearch } from './tools/search.js';
 
-// Initialize Gemini
-const apiKey = process.env.GEMINI_API_KEY;
 let ai;
-if (apiKey) {
-  ai = new GoogleGenAI({ apiKey });
-} else {
-  console.warn('GEMINI_API_KEY is not set. Conversational features will be disabled.');
+let configuredApiKey;
+
+function getGeminiClient() {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return null;
+  }
+
+  if (!ai || configuredApiKey !== apiKey) {
+    ai = new GoogleGenAI({ apiKey });
+    configuredApiKey = apiKey;
+  }
+
+  return ai;
 }
 
 // Tool Definitions
@@ -68,7 +76,8 @@ If you need to search the web, use the web_search tool.
 If you need to check dev activity, use the appropriate monitor tools.`;
 
 export async function handleGeminiChat(userMessage) {
-  if (!ai) {
+  const geminiClient = getGeminiClient();
+  if (!geminiClient) {
     return 'I am currently offline (GEMINI_API_KEY missing). Please configure my brain.';
   }
 
@@ -76,7 +85,7 @@ export async function handleGeminiChat(userMessage) {
     const model = 'gemini-2.5-flash-latest'; // Using the latest Flash model (fast & free tier friendly)
 
     // 1. Send message with tools
-    const result = await ai.models.generateContent({
+    const result = await geminiClient.models.generateContent({
       model,
       contents: [
         {
@@ -128,7 +137,7 @@ export async function handleGeminiChat(userMessage) {
     }
 
     // 4. Send function results back to model
-    const finalResult = await ai.models.generateContent({
+    const finalResult = await geminiClient.models.generateContent({
       model,
       contents: [
         {

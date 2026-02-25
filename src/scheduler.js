@@ -15,9 +15,13 @@ export function startScheduler(bot) {
   cron.schedule('*/14 * * * *', async () => {
     try {
       const renderUrl = process.env.RENDER_URL;
-      if (renderUrl) {
+      const isPlaceholderUrl = renderUrl?.includes('your-app.onrender.com');
+
+      if (renderUrl && !isPlaceholderUrl) {
         await axios.get(`${renderUrl}/ping`);
         console.log('Self-ping successful');
+      } else if (isPlaceholderUrl) {
+        console.warn('Self-ping skipped: set RENDER_URL to your deployed Render app URL.');
       }
     } catch (error) {
       console.error('Self-ping failed:', error.message);
