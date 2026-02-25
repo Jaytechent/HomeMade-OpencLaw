@@ -1,15 +1,22 @@
+import dotenv from 'dotenv';
 import { GoogleGenAI, Type } from '@google/genai';
 import { getGithubActivity } from './monitor/github.js';
 import { getVercelDeployments } from './monitor/vercel.js';
 import { getRenderDeploys } from './monitor/render.js';
 import { webSearch } from './tools/search.js';
 
+dotenv.config();
+
+const MODEL_NAME = 'gemini-3-flash-preview';
+
 let ai;
 let configuredApiKey;
 
 function getGeminiClient() {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GOOGLE_API_KEY;
+
   if (!apiKey) {
+    console.warn('⚠️ GOOGLE_API_KEY not set. Gemini features are offline.');
     return null;
   }
 
@@ -78,15 +85,13 @@ If you need to check dev activity, use the appropriate monitor tools.`;
 export async function handleGeminiChat(userMessage) {
   const geminiClient = getGeminiClient();
   if (!geminiClient) {
-    return 'I am currently offline (GEMINI_API_KEY missing). Please configure my brain.';
+    return 'I am currently offline (GOOGLE_API_KEY missing). Please configure my brain.';
   }
 
   try {
-    const model = 'gemini-2.5-flash-latest'; // Using the latest Flash model (fast & free tier friendly)
-
     // 1. Send message with tools
     const result = await geminiClient.models.generateContent({
-      model,
+      model: MODEL_NAME,
       contents: [
         {
           role: 'user',
@@ -109,7 +114,7 @@ export async function handleGeminiChat(userMessage) {
 
     // 3. Handle function calls
     const functionResponses = [];
-    
+
     for (const call of functionCalls) {
       let functionResult;
       const { name, args } = call;
@@ -138,7 +143,7 @@ export async function handleGeminiChat(userMessage) {
 
     // 4. Send function results back to model
     const finalResult = await geminiClient.models.generateContent({
-      model,
+      model: MODEL_NAME,
       contents: [
         {
           role: 'user',
@@ -150,8 +155,8 @@ export async function handleGeminiChat(userMessage) {
         },
         {
           role: 'user',
-          parts: functionResponses.map(resp => ({
-            functionResponse: resp
+          parts: functionResponses.map((resp) => ({
+            functionResponse: resp,
           })),
         },
       ],
@@ -162,7 +167,6 @@ export async function handleGeminiChat(userMessage) {
     });
 
     return finalResult.response.text;
-
   } catch (error) {
     console.error('Gemini error:', error);
     return `My brain hurts. Something went wrong: ${error.message}`;
