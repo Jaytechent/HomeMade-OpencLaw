@@ -1,7 +1,7 @@
+import 'dotenv/config';
 import express from 'express';
 import { setupBot } from './bot.js';
 import { startScheduler } from './scheduler.js';
-import 'dotenv/config';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
