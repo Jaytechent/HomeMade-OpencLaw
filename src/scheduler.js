@@ -11,6 +11,7 @@ export function startScheduler(bot) {
   console.log('Starting scheduler...');
 
   // Keep-alive ping every 14 minutes
+  // This is still useful to keep the Telegram bot polling active for user interactions
   cron.schedule('*/14 * * * *', async () => {
     try {
       const renderUrl = process.env.RENDER_URL;
@@ -21,18 +22,6 @@ export function startScheduler(bot) {
     } catch (error) {
       console.error('Self-ping failed:', error.message);
     }
-  });
-
-  // Morning post at 8 AM UTC
-  cron.schedule('0 8 * * *', () => {
-    console.log('Running morning monitoring cycle...');
-    runMonitoringCycle(bot);
-  });
-
-  // Evening post at 6 PM UTC
-  cron.schedule('0 18 * * *', () => {
-    console.log('Running evening monitoring cycle...');
-    runMonitoringCycle(bot);
   });
 }
 
