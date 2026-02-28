@@ -141,9 +141,6 @@ export async function handleGeminiChat(userMessage) {
       });
     }
 
-    // 4. Send function results back to model
-    // NOTE: For FunctionCall/FunctionResponse parts you must provide the full
-    // Content[] structure explicitly — the SDK requires it.
     const finalResult = await geminiClient.models.generateContent({
       model: MODEL_NAME,
       contents: [
