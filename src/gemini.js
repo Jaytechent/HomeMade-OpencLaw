@@ -28,12 +28,12 @@ function getGeminiClient() {
   return ai;
 }
 
-// Tool Definitions
+// Tool Definitions — use parametersJsonSchema (not parameters) for new SDK
 const githubTool = {
   name: 'github_activity',
   description: "Fetches the user's recent GitHub events (commits, PRs, releases, stars, issues) from the last 24 hours.",
-  parameters: {
-    type: Type.OBJECT,
+  parametersJsonSchema: {
+    type: 'object',
     properties: {},
   },
 };
@@ -41,8 +41,8 @@ const githubTool = {
 const vercelTool = {
   name: 'vercel_deployments',
   description: "Fetches the user's recent Vercel deployments (READY, ERROR, BUILDING) from the last 24 hours.",
-  parameters: {
-    type: Type.OBJECT,
+  parametersJsonSchema: {
+    type: 'object',
     properties: {},
   },
 };
@@ -50,8 +50,8 @@ const vercelTool = {
 const renderTool = {
   name: 'render_deploys',
   description: "Fetches the user's recent Render service deploys from the last 24 hours.",
-  parameters: {
-    type: Type.OBJECT,
+  parametersJsonSchema: {
+    type: 'object',
     properties: {},
   },
 };
@@ -59,11 +59,11 @@ const renderTool = {
 const searchTool = {
   name: 'web_search',
   description: 'Searches the web for a given query. Use this to find information, prices, documentation, or news.',
-  parameters: {
-    type: Type.OBJECT,
+  parametersJsonSchema: {
+    type: 'object',
     properties: {
       query: {
-        type: Type.STRING,
+        type: 'string',
         description: 'The search query.',
       },
     },
@@ -90,6 +90,8 @@ export async function handleGeminiChat(userMessage) {
 
   try {
     // 1. Send message with tools
+    // NOTE: In the new @google/genai SDK, generateContent returns the response DIRECTLY
+    // (not nested under .response). functionCalls is on the top-level result object.
     const result = await geminiClient.models.generateContent({
       model: MODEL_NAME,
       contents: [
@@ -104,12 +106,10 @@ export async function handleGeminiChat(userMessage) {
       },
     });
 
-    const response = result.response;
-    const functionCalls = response.functionCalls;
-
     // 2. If no function calls, return text
+    const functionCalls = result.functionCalls;
     if (!functionCalls || functionCalls.length === 0) {
-      return response.text;
+      return result.text;
     }
 
     // 3. Handle function calls
@@ -142,6 +142,8 @@ export async function handleGeminiChat(userMessage) {
     }
 
     // 4. Send function results back to model
+    // NOTE: For FunctionCall/FunctionResponse parts you must provide the full
+    // Content[] structure explicitly — the SDK requires it.
     const finalResult = await geminiClient.models.generateContent({
       model: MODEL_NAME,
       contents: [
@@ -151,7 +153,7 @@ export async function handleGeminiChat(userMessage) {
         },
         {
           role: 'model',
-          parts: response.candidates[0].content.parts,
+          parts: result.candidates[0].content.parts,
         },
         {
           role: 'user',
@@ -166,7 +168,7 @@ export async function handleGeminiChat(userMessage) {
       },
     });
 
-    return finalResult.response.text;
+    return finalResult.text;
   } catch (error) {
     console.error('Gemini error:', error);
     return `My brain hurts. Something went wrong: ${error.message}`;
