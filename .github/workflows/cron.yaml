@@ -10,5 +10,5 @@ jobs:
       - name: Wake up and Trigger Bot
         run: |
           curl -X POST https://homemade-openclaw.onrender.com/api/cron \
-          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+          -H "Authorization: Bearer naf12/26838" \
           -H "Content-Type: application/json"
