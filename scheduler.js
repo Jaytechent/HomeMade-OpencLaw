@@ -29,6 +29,21 @@ export function startScheduler(bot) {
   });
 }
 
+async function sendTelegramMessage(bot, message) {
+  const chatId = bot?.notificationChatId || process.env.TELEGRAM_CHAT_ID;
+
+  if (!bot || !chatId) {
+    console.warn('Telegram notification skipped: bot instance or chat ID is missing.');
+    return;
+  }
+
+  try {
+    await bot.telegram.sendMessage(chatId, message);
+  } catch (error) {
+    console.error('Failed to send Telegram message:', error.message);
+  }
+}
+
 export async function runMonitoringCycle(bot) {
   try {
     console.log('Fetching data...');
@@ -44,26 +59,26 @@ export async function runMonitoringCycle(bot) {
     // Post to LinkedIn
     const linkedInSuccess = await postToLinkedIn(linkedInContent);
     if (linkedInSuccess) {
-      bot.telegram.sendMessage(process.env.TELEGRAM_CHAT_ID, '✅ Posted to LinkedIn successfully!');
+      await sendTelegramMessage(bot, '✅ Posted to LinkedIn successfully!');
     } else {
-      bot.telegram.sendMessage(process.env.TELEGRAM_CHAT_ID, '❌ Failed to post to LinkedIn.');
+      await sendTelegramMessage(bot, '❌ Failed to post to LinkedIn.');
     }
 
     // Post to Twitter
     const twitterSuccess = await postToTwitter(twitterContent);
     if (twitterSuccess) {
-      bot.telegram.sendMessage(process.env.TELEGRAM_CHAT_ID, '✅ Posted to Twitter successfully!');
+      await sendTelegramMessage(bot, '✅ Posted to Twitter successfully!');
     } else {
-      bot.telegram.sendMessage(process.env.TELEGRAM_CHAT_ID, '❌ Failed to post to Twitter.');
+      await sendTelegramMessage(bot, '❌ Failed to post to Twitter.');
     }
 
     // Notify Telegram
-    bot.telegram.sendMessage(process.env.TELEGRAM_CHAT_ID, `Monitoring cycle complete.\n\nLinkedIn:\n${linkedInContent}\n\nTwitter:\n${twitterContent}`);
+    await sendTelegramMessage(bot, `Monitoring cycle complete.\n\nLinkedIn:\n${linkedInContent}\n\nTwitter:\n${twitterContent}`);
 
   } catch (error) {
     console.error('Error in monitoring cycle:', error);
     if (bot) {
-      bot.telegram.sendMessage(process.env.TELEGRAM_CHAT_ID, `Error in monitoring cycle: ${error.message}`);
+      await sendTelegramMessage(bot, `Error in monitoring cycle: ${error.message}`);
     }
   }
 }
