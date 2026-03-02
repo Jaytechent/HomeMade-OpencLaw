@@ -10,22 +10,34 @@ let isPaused = false;
 
 export function setupBot(token) {
   const bot = new Telegraf(token);
+  bot.notificationChatId = process.env.TELEGRAM_CHAT_ID || null;
+
+  const rememberChat = (ctx) => {
+    const chatId = ctx?.chat?.id;
+    if (chatId) {
+      bot.notificationChatId = String(chatId);
+    }
+  };
 
   bot.start((ctx) => {
+    rememberChat(ctx);
     ctx.reply('Welcome to OpenClaw Agent! 🤖\n\nCommands:\n/status - Check agent status\n/trigger - Run monitoring cycle now\n/preview - Preview next post\n/pause - Pause auto-posting\n/resume - Resume auto-posting\n\nSend me any message to chat with my Gemini brain! 🧠');
   });
 
   bot.command('status', (ctx) => {
+    rememberChat(ctx);
     ctx.reply(`Agent is running.\nAuto-posting is ${isPaused ? 'PAUSED ⏸️' : 'ACTIVE ✅'}\nLast check: ${new Date().toLocaleString()}`);
   });
 
   bot.command('trigger', async (ctx) => {
+    rememberChat(ctx);
     ctx.reply('Triggering monitoring cycle...');
     await runMonitoringCycle(bot);
     ctx.reply('Cycle complete.');
   });
 
   bot.command('preview', async (ctx) => {
+    rememberChat(ctx);
     ctx.reply('Generating preview...');
     try {
       const github = await getGithubActivity();
@@ -44,17 +56,20 @@ export function setupBot(token) {
   });
 
   bot.command('pause', (ctx) => {
+    rememberChat(ctx);
     isPaused = true;
     ctx.reply('Auto-posting paused.');
   });
 
   bot.command('resume', (ctx) => {
+    rememberChat(ctx);
     isPaused = false;
     ctx.reply('Auto-posting resumed.');
   });
 
   // Handle free text messages with Gemini
   bot.on('text', async (ctx) => {
+    rememberChat(ctx);
     // Ignore commands (starting with /)
     if (ctx.message.text.startsWith('/')) return;
 
