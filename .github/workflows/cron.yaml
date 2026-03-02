@@ -1,19 +1,14 @@
 name: OpenClaw Scheduler
-
 on:
   schedule:
-    # 8:00 AM UTC
-    - cron: '0 8 * * *'
-    # 6:00 PM UTC
-    - cron: '0 18 * * *'
-  workflow_dispatch: # Allow manual trigger
-
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
 jobs:
   trigger-bot:
     runs-on: ubuntu-latest
     steps:
       - name: Wake up and Trigger Bot
         run: |
-          curl -X POST ${{ secrets.RENDER_URL }}/api/cron \
+          curl -X POST https://homemade-openclaw.onrender.com/api/cron \
           -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
           -H "Content-Type: application/json"
