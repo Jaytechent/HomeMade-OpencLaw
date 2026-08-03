@@ -9,8 +9,8 @@ import { handleGeminiChat } from './gemini.js';
 // New: routing + onchain research services
 import config from './config.js';
 import * as router from './router.js';
-import * as coingecko from './services/coingecko.js';
-import * as contractAnalyzer from './services/contractAnalyzer.js';
+import * as coingecko from './services/Coingecko.js';
+import * as contractAnalyzer from './services/ContractAnalyzer.js';
 import * as venice from './services/venice.js';
 
 let isPaused = false;
