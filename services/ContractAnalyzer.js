@@ -13,7 +13,6 @@ import config from '../config.js';
 const CHAIN_ALIASES = {
   eth: 'ethereum',
   ethereum: 'ethereum',
-  bsc: 'bsc',
   bnb: 'bsc',
   binance: 'bsc',
   polygon: 'polygon',
