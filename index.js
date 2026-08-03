@@ -71,7 +71,7 @@ app.listen(PORT, () => {
 
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (token) {
-    console.log('Initializing Telegram bot...');
+    console.log('Telegram started...');
     bot = setupBot(token);
     startScheduler(bot);
     console.log('Bot initialized. Chat ID:', process.env.TELEGRAM_CHAT_ID);
