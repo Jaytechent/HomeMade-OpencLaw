@@ -6,7 +6,7 @@
 // This is heuristic pattern-matching on public data, NOT proof of scam
 // intent — the output says so explicitly, on purpose.
 
-import * as explorer from './multichainExplorer.js';
+import * as explorer from './MultichainExplorer.js';
 import * as dex from './dexscreener.js';
 import config from '../config.js';
 
