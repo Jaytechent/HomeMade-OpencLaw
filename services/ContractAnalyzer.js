@@ -7,7 +7,7 @@
 // intent — the output says so explicitly, on purpose.
 
 import * as explorer from './MultichainExplorer.js';
-import * as dex from './dexscreener.js';
+import * as dex from './Dexscreener.js';
 import config from '../config.js';
 
 const CHAIN_ALIASES = {
