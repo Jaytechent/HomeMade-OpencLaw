@@ -5,6 +5,7 @@
 const EVM_ADDRESS_RE = /0x[a-fA-F0-9]{40}/;
 const PRICE_KEYWORDS = /\b(price|market ?cap|mcap|worth|value|how much is)\b/i;
 const RESEARCH_KEYWORDS = /\b(abandoned|dead|rug|presale|contract|scam|research|verify|verified|liquidity)\b/i;
+const RESEARCH_CLEANUP_RE = /\b(abandoned|dead|rug|presale|contract|scam|research|verify|verified|liquidity)\b/gi;
 const CHAIN_HINT_RE = /\b(ethereum|eth|bsc|bnb|binance|polygon|matic|arbitrum|arb)\b/i;
 
 export function classify(text) {
@@ -17,7 +18,15 @@ export function classify(text) {
   }
 
   if (RESEARCH_KEYWORDS.test(text) && !PRICE_KEYWORDS.test(text)) {
-    return { intent: 'contract_research_no_address' };
+    const query = text
+      .replace(RESEARCH_CLEANUP_RE, '')
+      .replace(CHAIN_HINT_RE, '')
+      .replace(/[?.!,]/g, ' ')
+      .replace(/\b(find|search|for|look|up|the|token|coin|address|of|on|is|it|a|an|does|this|look|looks)\b/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    return { intent: 'contract_research_no_address', query: query || null, chainHint };
   }
 
   if (PRICE_KEYWORDS.test(text)) {

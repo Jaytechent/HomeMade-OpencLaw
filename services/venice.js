@@ -1,6 +1,7 @@
 // services/venice.js
-// Venice AI client (model: kimi-k3), used specifically to turn structured
-// on-chain research data into a plain-English explanation.
+// Venice AI client. Venice exposes an OpenAI-compatible chat completions
+// endpoint, so this thin wrapper accepts normal messages plus optional
+// tool-calling parameters.
 // Docs: https://docs.venice.ai/overview/about
 
 import axios from 'axios';
@@ -12,16 +13,25 @@ const client = axios.create({
   headers: { Authorization: `Bearer ${config.venice.apiKey}`, 'Content-Type': 'application/json' },
 });
 
-export async function chat(messages, opts = {}) {
+export async function createChatCompletion(messages, opts = {}) {
   if (!config.venice.apiKey) throw new Error('VENICE_API_KEY is not set.');
 
-  const { data } = await client.post('/chat/completions', {
-    model: config.venice.model,
+  const payload = {
+    model: opts.model || config.venice.model,
     messages,
     temperature: opts.temperature ?? 0.3,
     max_tokens: opts.maxTokens ?? 700,
-  });
+  };
 
+  if (opts.tools) payload.tools = opts.tools;
+  if (opts.toolChoice) payload.tool_choice = opts.toolChoice;
+
+  const { data } = await client.post('/chat/completions', payload);
+  return data;
+}
+
+export async function chat(messages, opts = {}) {
+  const data = await createChatCompletion(messages, opts);
   return data.choices?.[0]?.message?.content?.trim() || '';
 }
 

@@ -10,20 +10,14 @@ import * as venice from './services/venice.js';
 dotenv.config();
 
 // ──────────────────────────────────────────
-// PRIORITY ORDER (changed from original): Groq -> Venice -> Gemini
-// Groq is primary since it's been the reliable one. Venice (kimi-k3) is
-// the secondary fallback. Gemini is now last-resort only, kept around in
-// case the API key gets sorted out later — nothing is deleted, just
-// reordered.
-//
-// NOTE: only the Groq and Gemini paths do tool-calling (github/vercel/
-// render/web_search). The Venice fallback path is plain chat — if you
-// want tool-calling there too it needs Venice's OpenAI-compatible
-// function-calling format wired in the same way as the Groq block below.
+// PRIORITY ORDER: Venice -> Groq -> Gemini
+// Venice is primary, Groq is the second choice, and Gemini remains a
+// last-resort fallback. Venice and Groq both use OpenAI-compatible tool
+// calling so the agent can still search/fetch live data.
 // ──────────────────────────────────────────
 
 const GEMINI_MODEL = 'gemini-2.0-flash';
-const GROQ_MODEL = 'openai/gpt-oss-20b';
+const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-20b';
 
 // ──────────────────────────────────────────
 // Clients
@@ -49,7 +43,7 @@ let groqClient;
 function getGroqClient() {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
-    console.warn('⚠️  GROQ_API_KEY not set. Groq (primary) is offline.');
+    console.warn('⚠️  GROQ_API_KEY not set. Groq fallback is offline.');
     return null;
   }
   if (!groqClient) {
@@ -123,7 +117,7 @@ async function executeTool(name, args = {}) {
 }
 
 // ──────────────────────────────────────────
-// 1. Groq — PRIMARY
+// 2. Groq — SECONDARY FALLBACK
 // ──────────────────────────────────────────
 async function handleGroq(userMessage) {
   const groq = getGroqClient();
@@ -171,29 +165,60 @@ async function handleGroq(userMessage) {
 
     return `[via Groq]\n${finalResponse.choices[0].message.content}`;
   } catch (error) {
-    console.error('Groq (primary) error:', error.message);
-    return null; // fall through to Venice
+    console.error('Groq (secondary) error:', error.message);
+    return null; // fall through to Gemini
   }
 }
 
 // ──────────────────────────────────────────
-// 2. Venice (kimi-k3) — SECONDARY FALLBACK
+// 1. Venice — PRIMARY
 // ──────────────────────────────────────────
 async function handleVenice(userMessage) {
   if (!process.env.VENICE_API_KEY) {
-    console.warn('⚠️  VENICE_API_KEY not set. Venice fallback is offline.');
+    console.warn('⚠️  VENICE_API_KEY not set. Venice primary is offline.');
     return null;
   }
 
   try {
-    const reply = await venice.chat([
+    const messages = [
       { role: 'system', content: systemInstruction },
       { role: 'user', content: userMessage },
-    ]);
-    return `[via Venice · kimi-k3]\n${reply}`;
+    ];
+
+    const response = await venice.createChatCompletion(messages, {
+      tools: groqTools,
+      toolChoice: 'auto',
+    });
+
+    const choice = response.choices?.[0];
+    const toolCalls = choice?.message?.tool_calls;
+
+    if (!toolCalls || toolCalls.length === 0) {
+      return `[via Venice]\n${choice?.message?.content || ''}`;
+    }
+
+    messages.push(choice.message);
+
+    for (const toolCall of toolCalls) {
+      let result;
+      try {
+        const args = JSON.parse(toolCall.function.arguments || '{}');
+        result = await executeTool(toolCall.function.name, args);
+      } catch (err) {
+        result = { error: err.message };
+      }
+      messages.push({ role: 'tool', tool_call_id: toolCall.id, content: JSON.stringify(result) });
+    }
+
+    const finalResponse = await venice.createChatCompletion(messages, {
+      tools: groqTools,
+      toolChoice: 'auto',
+    });
+
+    return `[via Venice]\n${finalResponse.choices?.[0]?.message?.content || ''}`;
   } catch (error) {
-    console.error('Venice (secondary) error:', error.message);
-    return null; // fall through to Gemini
+    console.error('Venice (primary) error:', error.message);
+    return null; // fall through to Groq
   }
 }
 
@@ -246,22 +271,22 @@ async function handleGemini(userMessage) {
 }
 
 // ──────────────────────────────────────────
-// Main handler — tries Groq, then Venice, then Gemini, in order.
+// Main handler — tries Venice, then Groq, then Gemini, in order.
 // Exported name kept as handleGeminiChat so bot.js needs no changes.
 // ──────────────────────────────────────────
 export async function handleGeminiChat(userMessage) {
-  const groqResult = await handleGroq(userMessage);
-  if (groqResult) return groqResult;
-
-  console.log('🔄 Groq unavailable/failed — trying Venice...');
   const veniceResult = await handleVenice(userMessage);
   if (veniceResult) return veniceResult;
 
-  console.log('🔄 Venice unavailable/failed — trying Gemini (last resort)...');
+  console.log('🔄 Venice unavailable/failed — trying Groq...');
+  const groqResult = await handleGroq(userMessage);
+  if (groqResult) return groqResult;
+
+  console.log('🔄 Groq unavailable/failed — trying Gemini (last resort)...');
   const geminiResult = await handleGemini(userMessage);
   if (geminiResult) return geminiResult;
 
-  return '⚠️ Groq, Venice, and Gemini all failed or are unconfigured. Check your API keys (GROQ_API_KEY, VENICE_API_KEY, GOOGLE_API_KEY).';
+  return '⚠️ Venice, Groq, and Gemini all failed or are unconfigured. Check your API keys (VENICE_API_KEY, GROQ_API_KEY, GOOGLE_API_KEY).';
 }
 
 
@@ -287,7 +312,7 @@ export async function handleGeminiChat(userMessage) {
 // dotenv.config();
 
 // const GEMINI_MODEL = 'gemini-2.0-flash';
-// const GROQ_MODEL = 'openai/gpt-oss-20b'; // current recommended model per Groq docs
+// const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-20b'; // current recommended model per Groq docs
 
 // // ──────────────────────────────────────────
 // // Gemini Client
