@@ -22,7 +22,7 @@ export const config = {
   venice: {
     apiKey: process.env.VENICE_API_KEY,
     baseUrl: process.env.VENICE_BASE_URL || 'https://api.venice.ai/api/v1',
-    model: process.env.VENICE_MODEL || 'kimi-k3',
+    model: process.env.VENICE_MODEL || 'zai-org-glm-5',
   },
 
   // Etherscan V2 unified API: one free key covers Ethereum, BSC, Polygon,
