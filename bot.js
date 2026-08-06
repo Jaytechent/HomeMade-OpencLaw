@@ -88,9 +88,43 @@ async function handleQuestion(ctx, rawText) {
       }
 
       case 'contract_research_no_address': {
-        return ctx.reply(
-          "Send me the contract address (0x...) and optionally the chain (eth/bsc/polygon/arbitrum) and I'll check if it looks abandoned."
+        if (!classification.query) {
+          return ctx.reply(
+            "Tell me the token name or symbol (and chain if you know it), or paste the contract address, and I'll search for the contract before analyzing it."
+          );
+        }
+
+        ctx.sendChatAction('typing');
+        const match = await contractAnalyzer.findContractAddress(
+          classification.query,
+          classification.chainHint
         );
+
+        if (!match.resolved) {
+          return ctx.reply(match.note);
+        }
+
+        await ctx.reply(
+          `Found ${match.name || match.symbol || classification.query} (${match.symbol || 'n/a'}) on ${match.chainId || 'unknown chain'}: ${match.address}
+Analyzing now...`
+        );
+
+        const analysis = await contractAnalyzer.analyzeContract(match.address, match.chainId);
+        if (!analysis.resolved) {
+          return ctx.reply(analysis.note);
+        }
+
+        await ctx.replyWithMarkdown(contractAnalyzer.formatAnalysis(analysis));
+
+        if (config.venice.apiKey) {
+          try {
+            const explanation = await venice.explainContractAnalysis(analysis);
+            if (explanation) await ctx.reply(explanation);
+          } catch (e) {
+            console.warn('Venice explanation failed:', e.message);
+          }
+        }
+        return;
       }
 
       case 'general_chat':
@@ -126,7 +160,7 @@ export function setupBot(token) {
         'Commands:\n/status - Check agent status\n/trigger - Run monitoring cycle now\n/preview - Preview next post\n/pause - Pause auto-posting\n/resume - Resume auto-posting\n\n' +
         "DM me anything, or add me to a group and @mention me with:\n" +
         "• price/market cap questions (e.g. \"what's the market cap of SOL\")\n" +
-        '• a contract address (0x...) for abandoned/presale research\n' +
+        '• a contract address (0x...) or token name/symbol for abandoned/presale research\n' +
         '• any other web3 question'
     );
   });

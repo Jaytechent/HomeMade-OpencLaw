@@ -49,6 +49,33 @@ async function detectChainForAddress(address) {
   return null;
 }
 
+
+export async function findContractAddress(query, chainHint) {
+  let pairs = [];
+
+  try {
+    pairs = await dex.searchPairs(query);
+  } catch (error) {
+    return {
+      resolved: false,
+      query,
+      note: `I couldn't search DexScreener for \"${query}\" right now (${error.message}). Try again, include the chain, or paste the contract address.`,
+    };
+  }
+
+  const match = dex.resolveTokenFromPairs(pairs, query, chainHint);
+
+  if (!match) {
+    return {
+      resolved: false,
+      query,
+      note: `I couldn't find a likely contract address for "${query}" on DexScreener. Try the exact token name/symbol, chain, or paste the address.`,
+    };
+  }
+
+  return { resolved: true, query, ...match };
+}
+
 export async function analyzeContract(address, chainHint) {
   let chain = normalizeChain(chainHint);
   if (!chain) chain = await detectChainForAddress(address);
